@@ -50,44 +50,60 @@ func (p *Plugin) Exec() error {
 	}
 	client := elasticbeanstalk.New(session.New(), conf)
 
-	log.WithFields(log.Fields{
-		"region":           p.Region,
-		"application-name": p.Application,
-		"environment":      p.EnvironmentName,
-		"bucket":           p.Bucket,
-		"bucket-key":       p.BucketKey,
-		"versionlabel":     p.VersionLabel,
-		"description":      p.Description,
-		"env-update":       p.EnvironmentUpdate,
-		"auto-create":      p.AutoCreate,
-	}).Info("Attempting to create and update")
-
-	_, err := client.CreateApplicationVersion(
-		&elasticbeanstalk.CreateApplicationVersionInput{
-			VersionLabel:          aws.String(p.VersionLabel),
-			ApplicationName:       aws.String(p.Application),
-			Description:           aws.String(p.Description),
-			AutoCreateApplication: aws.Bool(p.AutoCreate),
-			Process:               aws.Bool(p.Process),
-			SourceBundle: &elasticbeanstalk.S3Location{
-				S3Bucket: aws.String(p.Bucket),
-				S3Key:    aws.String(p.BucketKey),
-			},
-		},
-	)
-	if err != nil {
+	if p.Bucket != "" && p.BucketKey != "" {
 		log.WithFields(log.Fields{
-			"error": err,
-		}).Error("Problem create application")
-		return err
+			"region":           p.Region,
+			"application-name": p.Application,
+			"environment":      p.EnvironmentName,
+			"bucket":           p.Bucket,
+			"bucket-key":       p.BucketKey,
+			"versionlabel":     p.VersionLabel,
+			"description":      p.Description,
+			"env-update":       p.EnvironmentUpdate,
+			"auto-create":      p.AutoCreate,
+		}).Info("Attempting to create application version")
+
+		_, err := client.CreateApplicationVersion(
+			&elasticbeanstalk.CreateApplicationVersionInput{
+				VersionLabel:          aws.String(p.VersionLabel),
+				ApplicationName:       aws.String(p.Application),
+				Description:           aws.String(p.Description),
+				AutoCreateApplication: aws.Bool(p.AutoCreate),
+				Process:               aws.Bool(p.Process),
+				SourceBundle: &elasticbeanstalk.S3Location{
+					S3Bucket: aws.String(p.Bucket),
+					S3Key:    aws.String(p.BucketKey),
+				},
+			},
+		)
+
+		if err != nil {
+			log.WithFields(log.Fields{
+				"error": err,
+			}).Error("Problem creating application")
+			return err
+		}
 	}
-	if p.EnvironmentUpdate == true && err == nil {
+
+	if p.EnvironmentUpdate {
+
+		log.WithFields(log.Fields{
+			"region":           p.Region,
+			"application-name": p.Application,
+			"environment":      p.EnvironmentName,
+			"bucket":           p.Bucket,
+			"bucket-key":       p.BucketKey,
+			"versionlabel":     p.VersionLabel,
+			"description":      p.Description,
+			"env-update":       p.EnvironmentUpdate,
+			"auto-create":      p.AutoCreate,
+		}).Info("Attempting to update environment")
 
 		if p.EnvironmentName == "" {
 			return fmt.Errorf("Can't update environment without environment name")
 		}
 
-		_, err = client.UpdateEnvironment(
+		_, err := client.UpdateEnvironment(
 			&elasticbeanstalk.UpdateEnvironmentInput{
 				VersionLabel:    aws.String(p.VersionLabel),
 				ApplicationName: aws.String(p.Application),
@@ -95,6 +111,7 @@ func (p *Plugin) Exec() error {
 				EnvironmentName: aws.String(p.EnvironmentName),
 			},
 		)
+
 		if err != nil {
 			log.WithFields(log.Fields{
 				"error": err,
