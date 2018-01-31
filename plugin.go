@@ -155,20 +155,45 @@ func (p *Plugin) Exec() error {
 				health := aws.StringValue(env.Health)
 				version := aws.StringValue(env.VersionLabel)
 
+				// get the latest event
+				event, err := client.DescribeEvents(&elasticbeanstalk.DescribeEventsInput{
+					ApplicationName: aws.String(p.Application),
+					EnvironmentName: aws.String(p.Environment),
+					MaxRecords:      aws.Int64(1),
+				})
+
+				if err != nil {
+					ctx.WithFields(log.Fields{
+						"error": err,
+					}).Error("Problem retrieving environment events")
+					return err
+				}
+
 				if status == elasticbeanstalk.EnvironmentStatusReady {
 
 					if p.VersionLabel != version {
 						err := errors.New("version mismatch")
-
 						ctx.WithFields(log.Fields{
 							"err":             err,
 							"current-version": version,
 							"status":          status,
 							"health":          health,
+							"event":           event.Events[0],
 						}).Error("Update failed")
-
 						return err
 					}
+				}
+
+				if status != elasticbeanstalk.EnvironmentStatusUpdating {
+					err := errors.New("environment is not updating")
+					ctx.WithFields(log.Fields{
+						"err":             err,
+						"current-version": version,
+						"status":          status,
+						"health":          health,
+						"event":           event.Events[0],
+					}).Error("Update failed")
+					return err
 				}
 
 				ctx.WithFields(log.Fields{
