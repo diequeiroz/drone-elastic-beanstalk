@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -28,12 +26,13 @@ type Plugin struct {
 
 	BucketKey         string
 	Application       string
-	EnvironmentName   string
+	Environment       string
 	VersionLabel      string
 	Description       string
 	AutoCreate        bool
 	Process           bool
 	EnvironmentUpdate bool
+	Debug             bool
 }
 
 // Exec runs the plugin
@@ -44,23 +43,34 @@ func (p *Plugin) Exec() error {
 		Region: aws.String(p.Region),
 	}
 
+	log.WithFields(log.Fields{
+		"region":       p.Region,
+		"application":  p.Application,
+		"environment":  p.Environment,
+		"bucket":       p.Bucket,
+		"bucket-key":   p.BucketKey,
+		"versionlabel": p.VersionLabel,
+		"description":  p.Description,
+		"env-update":   p.EnvironmentUpdate,
+		"auto-create":  p.AutoCreate,
+	}).Info("Authenticating")
+
 	// Use key and secret if provided otherwise fall back to ec2 instance profile
 	if p.Key != "" && p.Secret != "" {
+		log.Warning("AWS Key and Secret not found, will attempt to use IAM role")
 		conf.Credentials = credentials.NewStaticCredentials(p.Key, p.Secret, "")
 	}
 	client := elasticbeanstalk.New(session.New(), conf)
 
 	if p.Bucket != "" && p.BucketKey != "" {
+
 		log.WithFields(log.Fields{
-			"region":           p.Region,
-			"application-name": p.Application,
-			"environment":      p.EnvironmentName,
-			"bucket":           p.Bucket,
-			"bucket-key":       p.BucketKey,
-			"versionlabel":     p.VersionLabel,
-			"description":      p.Description,
-			"env-update":       p.EnvironmentUpdate,
-			"auto-create":      p.AutoCreate,
+			"application":  p.Application,
+			"bucket":       p.Bucket,
+			"bucket-key":   p.BucketKey,
+			"versionlabel": p.VersionLabel,
+			"description":  p.Description,
+			"auto-create":  p.AutoCreate,
 		}).Info("Attempting to create application version")
 
 		_, err := client.CreateApplicationVersion(
@@ -88,27 +98,17 @@ func (p *Plugin) Exec() error {
 	if p.EnvironmentUpdate {
 
 		log.WithFields(log.Fields{
-			"region":           p.Region,
-			"application-name": p.Application,
-			"environment":      p.EnvironmentName,
-			"bucket":           p.Bucket,
-			"bucket-key":       p.BucketKey,
-			"versionlabel":     p.VersionLabel,
-			"description":      p.Description,
-			"env-update":       p.EnvironmentUpdate,
-			"auto-create":      p.AutoCreate,
+			"application":  p.Application,
+			"environment":  p.Environment,
+			"versionlabel": p.VersionLabel,
 		}).Info("Attempting to update environment")
-
-		if p.EnvironmentName == "" {
-			return fmt.Errorf("Can't update environment without environment name")
-		}
 
 		_, err := client.UpdateEnvironment(
 			&elasticbeanstalk.UpdateEnvironmentInput{
 				VersionLabel:    aws.String(p.VersionLabel),
 				ApplicationName: aws.String(p.Application),
 				Description:     aws.String(p.Description),
-				EnvironmentName: aws.String(p.EnvironmentName),
+				EnvironmentName: aws.String(p.Environment),
 			},
 		)
 
@@ -119,6 +119,12 @@ func (p *Plugin) Exec() error {
 			return err
 		}
 	}
-	return nil
 
+	log.WithFields(log.Fields{
+		"application":  p.Application,
+		"environment":  p.Environment,
+		"versionlabel": p.VersionLabel,
+	}).Info("Update finished  successfully")
+
+	return nil
 }

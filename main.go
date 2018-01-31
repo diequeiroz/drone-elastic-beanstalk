@@ -50,9 +50,9 @@ func main() {
 			EnvVar: "PLUGIN_APPLICATION",
 		},
 		cli.StringFlag{
-			Name:   "environment-name",
+			Name:   "environment",
 			Usage:  "environment name in the app to update",
-			EnvVar: "PLUGIN_ENVIRONMENT_NAME",
+			EnvVar: "PLUGIN_ENVIRONMENT",
 		},
 		cli.StringFlag{
 			Name:   "version-label",
@@ -85,13 +85,14 @@ func main() {
 	}
 }
 func run(c *cli.Context) error {
+
 	plugin := Plugin{
 		Key:               c.String("access-key"),
 		Secret:            c.String("secret-key"),
 		Bucket:            c.String("bucket"),
 		BucketKey:         c.String("bucket-key"),
 		Application:       c.String("application"),
-		EnvironmentName:   c.String("environment-name"),
+		Environment:       c.String("environment"),
 		VersionLabel:      c.String("version-label"),
 		Description:       c.String("description"),
 		AutoCreate:        c.Bool("auto-create"),
