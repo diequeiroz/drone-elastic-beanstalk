@@ -57,6 +57,7 @@ func (p *Plugin) Exec() error {
 		"description":  p.Description,
 		"env-update":   p.EnvironmentUpdate,
 		"auto-create":  p.AutoCreate,
+		"timeout":      p.Timeout,
 	}).Info("Authenticating")
 
 	// Use key and secret if provided otherwise fall back to ec2 instance profile
@@ -105,6 +106,7 @@ func (p *Plugin) Exec() error {
 			"application":  p.Application,
 			"environment":  p.Environment,
 			"versionlabel": p.VersionLabel,
+			"timeout":      p.Timeout,
 		})
 
 		ctx.Info("Attempting to update environment")
