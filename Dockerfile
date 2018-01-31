@@ -1,17 +1,9 @@
-FROM alpine:3.6 as alpine
-RUN apk add -U --no-cache ca-certificates
+FROM golang:1.9-alpine
+WORKDIR /go/src/github.com/quintoandar/drone-elasticbeanstalk
+ADD . .
+RUN GOOS=linux CGO_ENABLED=0 go build -o /bin/drone-elasticbeanstalk \
+    github.com/quintoandar/drone-elasticbeanstalk
 
 FROM scratch
-
-ENV GODEBUG=netdns=go
-
-COPY --from=alpine /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-
-LABEL org.label-schema.version=latest
-LABEL org.label-schema.vcs-url="https://github.com/josmo/drone-elastic-beanstalk.git"
-LABEL org.label-schema.name="Drone elastic-beanstalk"
-LABEL org.label-schema.vendor="Josmo"
-
-ADD release/linux/amd64/drone-elastic-beanstalk /bin/
-ENTRYPOINT ["/bin/drone-elastic-beanstalk"]
-
+COPY --from=0 /bin/drone-elasticbeanstalk /bin/drone-elasticbeanstalk
+ENTRYPOINT ["/bin/drone-elasticbeanstalk"]
