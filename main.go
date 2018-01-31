@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -79,6 +81,12 @@ func main() {
 			Usage:  "update the environment",
 			EnvVar: "PLUGIN_ENVIRONMENT_UPDATE",
 		},
+		cli.StringFlag{
+			Name:   "timeout",
+			Usage:  "deploy timeout in minutes",
+			Value:  "20",
+			EnvVar: "PLUGIN_TIMEOUT",
+		},
 	}
 	if err := app.Run(os.Args); err != nil {
 		log.Fatal(err)
@@ -86,7 +94,18 @@ func main() {
 }
 func run(c *cli.Context) error {
 
+	timeout, err := strconv.Atoi(c.String("timeout"))
+
+	if err != nil {
+		log.WithFields(log.Fields{
+			"timeout": c.String("timeout"),
+			"error":   err,
+		}).Error("invalid timeout configuration")
+		return err
+	}
+
 	plugin := Plugin{
+		Region:            c.String("region"),
 		Key:               c.String("access-key"),
 		Secret:            c.String("secret-key"),
 		Bucket:            c.String("bucket"),
@@ -98,7 +117,7 @@ func run(c *cli.Context) error {
 		AutoCreate:        c.Bool("auto-create"),
 		Process:           c.Bool("process"),
 		EnvironmentUpdate: c.Bool("environment-update"),
-		Region:            c.String("region"),
+		Timeout:           time.Duration(timeout) * time.Minute,
 	}
 
 	return plugin.Exec()
