@@ -149,5 +149,5 @@
 			"revisionTime": "2016-07-26T01:14:03Z"
 		}
 	],
-	"rootPath": "github.com/drone-plugins/drone-elastic-beanstalk"
+	"rootPath": "github.com/josmo/drone-elastic-beanstalk"
 }
