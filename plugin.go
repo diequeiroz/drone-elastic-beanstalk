@@ -29,7 +29,7 @@ type Plugin struct {
 
 	BucketKey         string
 	Application       string
-	Environment       string
+	EnvironmentName   string
 	VersionLabel      string
 	Description       string
 	AutoCreate        bool
@@ -50,7 +50,7 @@ func (p *Plugin) Exec() error {
 	log.WithFields(log.Fields{
 		"region":       p.Region,
 		"application":  p.Application,
-		"environment":  p.Environment,
+		"environment":  p.EnvironmentName,
 		"bucket":       p.Bucket,
 		"bucket-key":   p.BucketKey,
 		"versionlabel": p.VersionLabel,
@@ -104,7 +104,7 @@ func (p *Plugin) Exec() error {
 
 		ctx := log.WithFields(log.Fields{
 			"application":  p.Application,
-			"environment":  p.Environment,
+			"environment":  p.EnvironmentName,
 			"versionlabel": p.VersionLabel,
 			"timeout":      p.Timeout,
 		})
@@ -116,7 +116,7 @@ func (p *Plugin) Exec() error {
 				VersionLabel:    aws.String(p.VersionLabel),
 				ApplicationName: aws.String(p.Application),
 				Description:     aws.String(p.Description),
-				EnvironmentName: aws.String(p.Environment),
+				EnvironmentName: aws.String(p.EnvironmentName),
 			},
 		)
 
@@ -140,7 +140,7 @@ func (p *Plugin) Exec() error {
 				envs, err := client.DescribeEnvironments(
 					&elasticbeanstalk.DescribeEnvironmentsInput{
 						ApplicationName:  aws.String(p.Application),
-						EnvironmentNames: []*string{aws.String(p.Environment)},
+						EnvironmentNames: []*string{aws.String(p.EnvironmentName)},
 					},
 				)
 
@@ -160,7 +160,7 @@ func (p *Plugin) Exec() error {
 				// get the latest event
 				event, err := client.DescribeEvents(&elasticbeanstalk.DescribeEventsInput{
 					ApplicationName: aws.String(p.Application),
-					EnvironmentName: aws.String(p.Environment),
+					EnvironmentName: aws.String(p.EnvironmentName),
 					MaxRecords:      aws.Int64(1),
 				})
 
@@ -220,7 +220,7 @@ func (p *Plugin) Exec() error {
 
 	log.WithFields(log.Fields{
 		"application":  p.Application,
-		"environment":  p.Environment,
+		"environment":  p.EnvironmentName,
 		"versionlabel": p.VersionLabel,
 	}).Info("Update finished successfully")
 

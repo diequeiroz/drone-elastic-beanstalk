@@ -52,9 +52,9 @@ func main() {
 			EnvVar: "PLUGIN_APPLICATION",
 		},
 		cli.StringFlag{
-			Name:   "environment",
+			Name:   "environment-name",
 			Usage:  "environment name in the app to update",
-			EnvVar: "PLUGIN_ENVIRONMENT",
+			EnvVar: "PLUGIN_ENVIRONMENT_NAME",
 		},
 		cli.StringFlag{
 			Name:   "version-label",
@@ -111,7 +111,7 @@ func run(c *cli.Context) error {
 		Bucket:            c.String("bucket"),
 		BucketKey:         c.String("bucket-key"),
 		Application:       c.String("application"),
-		Environment:       c.String("environment"),
+		EnvironmentName:   c.String("environment-name"),
 		VersionLabel:      c.String("version-label"),
 		Description:       c.String("description"),
 		AutoCreate:        c.Bool("auto-create"),
