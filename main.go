@@ -51,10 +51,10 @@ func main() {
 			Usage:  "application name for beanstalk",
 			EnvVar: "PLUGIN_APPLICATION",
 		},
-		cli.StringFlag{
-			Name:   "environment-name",
+		cli.StringSliceFlag{
+			Name:   "environments",
 			Usage:  "environment name in the app to update",
-			EnvVar: "PLUGIN_ENVIRONMENT_NAME",
+			EnvVar: "PLUGIN_ENVIRONMENTS, PLUGIN_ENVIRONMENT_NAME",
 		},
 		cli.StringFlag{
 			Name:   "version-label",
@@ -111,7 +111,7 @@ func run(c *cli.Context) error {
 		Bucket:            c.String("bucket"),
 		BucketKey:         c.String("bucket-key"),
 		Application:       c.String("application"),
-		EnvironmentName:   c.String("environment-name"),
+		Environments:      c.StringSlice("environments"),
 		VersionLabel:      c.String("version-label"),
 		Description:       c.String("description"),
 		AutoCreate:        c.Bool("auto-create"),

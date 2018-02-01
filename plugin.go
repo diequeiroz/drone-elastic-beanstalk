@@ -27,9 +27,10 @@ type Plugin struct {
 	// sa-east-1
 	Region string
 
-	BucketKey         string
-	Application       string
-	EnvironmentName   string
+	BucketKey    string
+	Application  string
+	Environments []string
+
 	VersionLabel      string
 	Description       string
 	AutoCreate        bool
@@ -50,7 +51,7 @@ func (p *Plugin) Exec() error {
 	log.WithFields(log.Fields{
 		"region":       p.Region,
 		"application":  p.Application,
-		"environment":  p.EnvironmentName,
+		"environments": p.Environments,
 		"bucket":       p.Bucket,
 		"bucket-key":   p.BucketKey,
 		"versionlabel": p.VersionLabel,
@@ -100,34 +101,36 @@ func (p *Plugin) Exec() error {
 		}
 	}
 
-	if p.EnvironmentUpdate {
+	ctx := log.WithFields(log.Fields{
+		"application":  p.Application,
+		"environments": p.Environments,
+		"versionlabel": p.VersionLabel,
+		"timeout":      p.Timeout,
+	})
 
-		ctx := log.WithFields(log.Fields{
-			"application":  p.Application,
-			"environment":  p.EnvironmentName,
-			"versionlabel": p.VersionLabel,
-			"timeout":      p.Timeout,
-		})
+	if p.EnvironmentUpdate {
 
 		ctx.Info("Attempting to update environment")
 
-		_, err := client.UpdateEnvironment(
-			&elasticbeanstalk.UpdateEnvironmentInput{
-				VersionLabel:    aws.String(p.VersionLabel),
-				ApplicationName: aws.String(p.Application),
-				Description:     aws.String(p.Description),
-				EnvironmentName: aws.String(p.EnvironmentName),
-			},
-		)
+		for _, environmentName := range p.Environments {
+			_, err := client.UpdateEnvironment(
+				&elasticbeanstalk.UpdateEnvironmentInput{
+					VersionLabel:    aws.String(p.VersionLabel),
+					ApplicationName: aws.String(p.Application),
+					Description:     aws.String(p.Description),
+					EnvironmentName: aws.String(environmentName),
+				},
+			)
 
-		if err != nil {
-			ctx.WithFields(log.Fields{
-				"error": err,
-			}).Error("Problem updating beanstalk")
-			return err
+			if err != nil {
+				ctx.WithFields(log.Fields{
+					"error": err,
+				}).Error("Problem updating beanstalk")
+				return err
+			}
 		}
 
-		ctx.Info("Wating for environment to finish updating")
+		ctx.Info("Waiting for environment to finish updating")
 
 		tick := time.Tick(time.Second * 10)
 		timeout := time.After(p.Timeout)
@@ -140,69 +143,74 @@ func (p *Plugin) Exec() error {
 				envs, err := client.DescribeEnvironments(
 					&elasticbeanstalk.DescribeEnvironmentsInput{
 						ApplicationName:  aws.String(p.Application),
-						EnvironmentNames: []*string{aws.String(p.EnvironmentName)},
+						EnvironmentNames: aws.StringSlice(p.Environments),
 					},
 				)
 
 				if err != nil {
-					ctx.WithFields(log.Fields{
+					log.WithFields(log.Fields{
 						"error": err,
 					}).Error("Problem retrieving environment information")
 					return err
 				}
 
-				env := envs.Environments[0]
+				for _, env := range envs.Environments {
 
-				status := aws.StringValue(env.Status)
-				health := aws.StringValue(env.Health)
-				version := aws.StringValue(env.VersionLabel)
+					status := aws.StringValue(env.Status)
+					health := aws.StringValue(env.Health)
+					version := aws.StringValue(env.VersionLabel)
 
-				// get the latest event
-				event, err := client.DescribeEvents(&elasticbeanstalk.DescribeEventsInput{
-					ApplicationName: aws.String(p.Application),
-					EnvironmentName: aws.String(p.EnvironmentName),
-					MaxRecords:      aws.Int64(1),
-				})
+					// get the latest event
+					event, err := client.DescribeEvents(&elasticbeanstalk.DescribeEventsInput{
+						ApplicationName: aws.String(p.Application),
+						EnvironmentName: env.EnvironmentName,
+						MaxRecords:      aws.Int64(1),
+					})
 
-				if err != nil {
-					ctx.WithFields(log.Fields{
-						"error": err,
-					}).Error("Problem retrieving environment events")
-					return err
-				}
+					if err != nil {
+						log.WithFields(log.Fields{
+							"error":       err,
+							"environment": env.EnvironmentName,
+						}).Error("Problem retrieving environment events")
+						return err
+					}
 
-				if status == elasticbeanstalk.EnvironmentStatusReady {
+					if status == elasticbeanstalk.EnvironmentStatusReady {
 
-					if p.VersionLabel != version {
-						err := errors.New("version mismatch")
-						ctx.WithFields(log.Fields{
+						if p.VersionLabel != version {
+							err := errors.New("version mismatch")
+							log.WithFields(log.Fields{
+								"err":             err,
+								"current-version": version,
+								"status":          status,
+								"health":          health,
+								"event":           event.Events[0],
+								"environment":     env.EnvironmentName,
+							}).Error("Update failed")
+							return err
+						}
+					}
+
+					if status != elasticbeanstalk.EnvironmentStatusUpdating {
+						err := errors.New("environment is not updating")
+						log.WithFields(log.Fields{
 							"err":             err,
 							"current-version": version,
 							"status":          status,
 							"health":          health,
 							"event":           event.Events[0],
+							"environment":     env.EnvironmentName,
 						}).Error("Update failed")
 						return err
 					}
-				}
 
-				if status != elasticbeanstalk.EnvironmentStatusUpdating {
-					err := errors.New("environment is not updating")
-					ctx.WithFields(log.Fields{
-						"err":             err,
+					log.WithFields(log.Fields{
+						"environment":     env.EnvironmentName,
 						"current-version": version,
 						"status":          status,
 						"health":          health,
-						"event":           event.Events[0],
-					}).Error("Update failed")
-					return err
+					}).Info("Updating")
 				}
-
-				ctx.WithFields(log.Fields{
-					"current-version": version,
-					"status":          status,
-					"health":          health,
-				}).Info("Updating")
 
 			case <-timeout:
 				err := errors.New("timed out")
@@ -210,7 +218,7 @@ func (p *Plugin) Exec() error {
 				if err != nil {
 					ctx.WithFields(log.Fields{
 						"error": err,
-					}).Error("Environment failed to update")
+					}).Error("Environments failed to update")
 					return err
 				}
 
@@ -218,9 +226,9 @@ func (p *Plugin) Exec() error {
 		}
 	}
 
-	log.WithFields(log.Fields{
+	ctx.WithFields(log.Fields{
 		"application":  p.Application,
-		"environment":  p.EnvironmentName,
+		"environments": p.Environments,
 		"versionlabel": p.VersionLabel,
 	}).Info("Update finished successfully")
 
