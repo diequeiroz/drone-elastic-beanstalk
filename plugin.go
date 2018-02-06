@@ -63,9 +63,11 @@ func (p *Plugin) Exec() error {
 
 	// Use key and secret if provided otherwise fall back to ec2 instance profile
 	if p.Key != "" && p.Secret != "" {
-		log.Warning("AWS Key and Secret not found, will attempt to use IAM role")
 		conf.Credentials = credentials.NewStaticCredentials(p.Key, p.Secret, "")
+	} else {
+		log.Warning("AWS Key and Secret not found, will attempt to use IAM role")
 	}
+
 	client := elasticbeanstalk.New(session.New(), conf)
 
 	if p.Bucket != "" && p.BucketKey != "" {
