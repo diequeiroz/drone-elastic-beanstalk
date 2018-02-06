@@ -4,6 +4,7 @@ ADD . .
 RUN GOOS=linux CGO_ENABLED=0 go build -o /bin/drone-elasticbeanstalk \
     github.com/quintoandar/drone-elasticbeanstalk
 
-FROM scratch
+FROM alpine:3.7
+RUN apk add --no-cache ca-certificates
 COPY --from=0 /bin/drone-elasticbeanstalk /bin/drone-elasticbeanstalk
 ENTRYPOINT ["/bin/drone-elasticbeanstalk"]
