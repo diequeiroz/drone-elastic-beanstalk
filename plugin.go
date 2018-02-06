@@ -174,10 +174,10 @@ func (p *Plugin) Exec() error {
 				version := aws.StringValue(env.VersionLabel)
 
 				envFields := log.WithFields(log.Fields{
-					"latest-event":    event,
-					"current-version": version,
-					"status":          status,
-					"health":          health,
+					"event":   event,
+					"version": version,
+					"status":  status,
+					"health":  health,
 				})
 
 				envFields.Info("Updating")
