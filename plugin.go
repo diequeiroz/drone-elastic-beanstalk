@@ -153,7 +153,7 @@ func (p *Plugin) Exec() error {
 				}
 
 				// get the latest event
-				event, err := client.DescribeEvents(&elasticbeanstalk.DescribeEventsInput{
+				events, err := client.DescribeEvents(&elasticbeanstalk.DescribeEventsInput{
 					ApplicationName: aws.String(p.Application),
 					EnvironmentName: aws.String(p.EnvironmentName),
 					MaxRecords:      aws.Int64(1),
@@ -168,15 +168,16 @@ func (p *Plugin) Exec() error {
 
 				env := envs.Environments[0]
 
+				event := aws.StringValue(events.Events[0].Message)
 				status := aws.StringValue(env.Status)
 				health := aws.StringValue(env.Health)
 				version := aws.StringValue(env.VersionLabel)
 
 				envFields := log.WithFields(log.Fields{
+					"latest-event":    event,
 					"current-version": version,
 					"status":          status,
 					"health":          health,
-					"latest-event":    event.Events[0].Message,
 				})
 
 				envFields.Info("Updating")
