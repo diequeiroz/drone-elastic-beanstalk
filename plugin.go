@@ -61,11 +61,10 @@ func (p *Plugin) Exec() error {
 		"timeout":      p.Timeout,
 	}).Info("Authenticating")
 
-	// Use key and secret if provided otherwise fall back to ec2 instance profile
 	if p.Key != "" && p.Secret != "" {
 		conf.Credentials = credentials.NewStaticCredentials(p.Key, p.Secret, "")
 	} else {
-		log.Warning("AWS Key and Secret not found, will attempt to use IAM role")
+		log.Warn("AWS Key and/or Secret not provided (falling back to ec2 instance profile)")
 	}
 
 	client := elasticbeanstalk.New(session.New(), conf)
@@ -79,7 +78,7 @@ func (p *Plugin) Exec() error {
 			"versionlabel": p.VersionLabel,
 			"description":  p.Description,
 			"auto-create":  p.AutoCreate,
-		}).Info("Attempting to create application version")
+		}).Info("Creating application version")
 
 		_, err := client.CreateApplicationVersion(
 			&elasticbeanstalk.CreateApplicationVersionInput{
@@ -112,7 +111,7 @@ func (p *Plugin) Exec() error {
 
 	if p.EnvironmentUpdate {
 
-		ctx.Info("Attempting to update environment")
+		ctx.Info("Updating environment")
 
 		for _, environmentName := range p.Environments {
 			_, err := client.UpdateEnvironment(
