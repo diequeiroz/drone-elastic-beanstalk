@@ -103,14 +103,14 @@ func (p *Plugin) Exec() error {
 
 	if p.EnvironmentUpdate {
 
-		logFields := log.WithFields(log.Fields{
+		appFields := log.WithFields(log.Fields{
 			"application":  p.Application,
 			"environment":  p.EnvironmentName,
 			"versionlabel": p.VersionLabel,
 			"timeout":      p.Timeout,
 		})
 
-		logFields.Info("Updating environment")
+		appFields.Info("Updating environment")
 
 		_, err := client.UpdateEnvironment(
 			&elasticbeanstalk.UpdateEnvironmentInput{
@@ -122,13 +122,13 @@ func (p *Plugin) Exec() error {
 		)
 
 		if err != nil {
-			logFields.WithFields(log.Fields{
+			appFields.WithFields(log.Fields{
 				"error": err,
 			}).Error("Problem updating beanstalk")
 			return err
 		}
 
-		logFields.Info("Wating for environment to finish updating")
+		appFields.Info("Wating for environment to finish updating")
 
 		tick := time.Tick(time.Second * 10)
 		timeout := time.After(p.Timeout)
@@ -146,9 +146,23 @@ func (p *Plugin) Exec() error {
 				)
 
 				if err != nil {
-					logFields.WithFields(log.Fields{
+					appFields.WithFields(log.Fields{
 						"error": err,
 					}).Error("Problem retrieving environment information")
+					return err
+				}
+
+				// get the latest event
+				event, err := client.DescribeEvents(&elasticbeanstalk.DescribeEventsInput{
+					ApplicationName: aws.String(p.Application),
+					EnvironmentName: aws.String(p.EnvironmentName),
+					MaxRecords:      aws.Int64(1),
+				})
+
+				if err != nil {
+					appFields.WithFields(log.Fields{
+						"error": err,
+					}).Error("Problem retrieving environment events")
 					return err
 				}
 
@@ -162,52 +176,43 @@ func (p *Plugin) Exec() error {
 					"current-version": version,
 					"status":          status,
 					"health":          health,
+					"latest-event":    event.Events[0].Message,
 				})
 
-				// get the latest event
-				event, err := client.DescribeEvents(&elasticbeanstalk.DescribeEventsInput{
-					ApplicationName: aws.String(p.Application),
-					EnvironmentName: aws.String(p.EnvironmentName),
-					MaxRecords:      aws.Int64(1),
-				})
-
-				if err != nil {
-					envFields.WithFields(log.Fields{
-						"error": err,
-					}).Error("Problem retrieving environment events")
-					return err
-				}
-
-				envFields = envFields.WithFields(log.Fields{
-					"latest-event": event.Events[0].Message,
-				})
+				envFields.Info("Updating")
 
 				if status == elasticbeanstalk.EnvironmentStatusReady {
 
 					if p.VersionLabel != version {
 						err := errors.New("version mismatch")
-						envFields.WithFields(log.Fields{
+						appFields.WithFields(log.Fields{
 							"err": err,
 						}).Error("Update failed")
 						return err
 					}
+
+					appFields.WithFields(log.Fields{
+						"application":  p.Application,
+						"environment":  p.EnvironmentName,
+						"versionlabel": p.VersionLabel,
+					}).Info("Update finished successfully")
+
+					return nil
 				}
 
 				if status != elasticbeanstalk.EnvironmentStatusUpdating {
 					err := errors.New("environment is not updating")
-					envFields.WithFields(log.Fields{
+					appFields.WithFields(log.Fields{
 						"err": err,
 					}).Error("Update failed")
 					return err
 				}
 
-				envFields.Info("Updating")
-
 			case <-timeout:
 				err := errors.New("timed out")
 
 				if err != nil {
-					logFields.WithFields(log.Fields{
+					appFields.WithFields(log.Fields{
 						"error": err,
 					}).Error("Environment failed to update")
 					return err
@@ -216,12 +221,6 @@ func (p *Plugin) Exec() error {
 			}
 		}
 	}
-
-	log.WithFields(log.Fields{
-		"application":  p.Application,
-		"environment":  p.EnvironmentName,
-		"versionlabel": p.VersionLabel,
-	}).Info("Update finished successfully")
 
 	return nil
 }
