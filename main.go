@@ -65,6 +65,7 @@ func main() {
 			Name:   "description",
 			Usage:  "description for the app version",
 			EnvVar: "PLUGIN_DESCRIPTION",
+			Value:  "Update from quintoandar/drone-elasticbeanstalk plugin",
 		},
 		cli.StringFlag{
 			Name:   "auto-create",
