@@ -103,9 +103,7 @@ func (p *Plugin) Exec() error {
 				return err
 			}
 
-			log.WithFields(log.Fields{
-				"error": err,
-			}).Warning("Ignoring error and attempting to update")
+			log.Warning("Ignoring error and attempting to update")
 		}
 	}
 
