@@ -45,7 +45,7 @@ func (p *Plugin) Exec() error {
 
 	conf := &aws.Config{
 		Region:     aws.String(p.Region),
-		MaxRetries: aws.Int(2),
+		MaxRetries: aws.Int(20),
 	}
 
 	log.WithFields(log.Fields{
