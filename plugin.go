@@ -73,32 +73,63 @@ func (p *Plugin) Exec() error {
 
 		log.WithFields(log.Fields{
 			"application":  p.Application,
-			"bucket":       p.Bucket,
-			"bucket-key":   p.BucketKey,
 			"versionlabel": p.VersionLabel,
-			"description":  p.Description,
-			"auto-create":  p.AutoCreate,
-		}).Info("Creating application version")
+		}).Info("Describing application versions")
 
-		_, err := client.CreateApplicationVersion(
-			&elasticbeanstalk.CreateApplicationVersionInput{
-				VersionLabel:          aws.String(p.VersionLabel),
-				ApplicationName:       aws.String(p.Application),
-				Description:           aws.String(p.Description),
-				AutoCreateApplication: aws.Bool(p.AutoCreate),
-				Process:               aws.Bool(p.Process),
-				SourceBundle: &elasticbeanstalk.S3Location{
-					S3Bucket: aws.String(p.Bucket),
-					S3Key:    aws.String(p.BucketKey),
-				},
+		applications, err := client.DescribeApplicationVersions(
+			&elasticbeanstalk.DescribeApplicationVersionsInput{
+				VersionLabels:   aws.StringSlice([]string{p.VersionLabel}),
+				ApplicationName: aws.String(p.Application),
 			},
 		)
 
 		if err != nil {
 			log.WithFields(log.Fields{
 				"error": err,
-			}).Error("Problem creating application")
+			}).Warning("Problem describing application versions")
 			return err
+		}
+
+		if len(applications.ApplicationVersions) == 0 {
+
+			log.WithFields(log.Fields{
+				"application":  p.Application,
+				"bucket":       p.Bucket,
+				"bucket-key":   p.BucketKey,
+				"versionlabel": p.VersionLabel,
+				"description":  p.Description,
+				"auto-create":  p.AutoCreate,
+			}).Info("Creating application version")
+
+			_, err := client.CreateApplicationVersion(
+				&elasticbeanstalk.CreateApplicationVersionInput{
+					VersionLabel:          aws.String(p.VersionLabel),
+					ApplicationName:       aws.String(p.Application),
+					Description:           aws.String(p.Description),
+					AutoCreateApplication: aws.Bool(p.AutoCreate),
+					Process:               aws.Bool(p.Process),
+					SourceBundle: &elasticbeanstalk.S3Location{
+						S3Bucket: aws.String(p.Bucket),
+						S3Key:    aws.String(p.BucketKey),
+					},
+				},
+			)
+
+			if err != nil {
+				log.WithFields(log.Fields{
+					"error": err,
+				}).Warning("Problem creating application version")
+				return err
+			}
+		} else {
+			log.WithFields(log.Fields{
+				"application":  p.Application,
+				"bucket":       p.Bucket,
+				"bucket-key":   p.BucketKey,
+				"versionlabel": p.VersionLabel,
+				"description":  p.Description,
+				"auto-create":  p.AutoCreate,
+			}).Info("Application version already exists")
 		}
 	}
 
