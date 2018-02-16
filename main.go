@@ -85,7 +85,7 @@ func main() {
 		cli.StringFlag{
 			Name:   "timeout",
 			Usage:  "deploy timeout in minutes",
-			Value:  "20",
+			Value:  "30",
 			EnvVar: "PLUGIN_TIMEOUT",
 		},
 	}
