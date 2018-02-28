@@ -128,7 +128,7 @@ func (p *Plugin) Exec() error {
 		tick := time.Tick(time.Second * 10)
 		tout := time.After(p.Timeout)
 
-		_, err = client.UpdateEnvironment(
+		description, err := client.UpdateEnvironment(
 			&elasticbeanstalk.UpdateEnvironmentInput{
 				VersionLabel:    aws.String(p.VersionLabel),
 				ApplicationName: aws.String(p.Application),
@@ -137,12 +137,14 @@ func (p *Plugin) Exec() error {
 			},
 		)
 
+		appFields.Infoln(description)
+
 		if err != nil {
 			appFields.WithError(err).Error("Problem updating beanstalk")
 			return err
 		}
 
-		appFields.Info("Wating for environment to finish updating")
+		appFields.Info("Waiting for environment to finish updating")
 
 		for {
 			select {
@@ -192,8 +194,8 @@ func (p *Plugin) Exec() error {
 				if status == elasticbeanstalk.EnvironmentStatusReady {
 
 					if p.VersionLabel != version {
-						err := errors.New("version mismatch")
-						appFields.WithError(err).Error("Update failed")
+						err := errors.New("update did not finish")
+						appFields.WithError(err).Error("Update failed, please check EB environment logs")
 						return err
 					}
 
@@ -261,17 +263,12 @@ func waitEnvironmentToBeReady(client *elasticbeanstalk.ElasticBeanstalk, applica
 				return nil
 			}
 
-			appFields.WithField("status", env.Status).Info("Wating for environment to be ready")
+			appFields.WithField("status", aws.StringValue(env.Status)).Info("Waiting for environment to be ready")
 
 		case <-tout:
 			err := errors.New("timed out")
-
-			if err != nil {
-				appFields.WithError(err).Error("Environment never got into ready state")
-				return err
-			}
-
+			appFields.WithError(err).Error("Environment never got into ready state")
+			return err
 		}
 	}
-
 }
